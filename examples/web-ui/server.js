@@ -70,7 +70,11 @@ function runAgent(agentId, input, { onText, onRaw }, model) {
   return new Promise((resolve, reject) => {
     const args = ["run", "--agent", agentId, "--format", "json"];
     if (model) args.push("-m", String(model));
-    args.push(input);
+    // Never spawn with an empty message — opencode rejects it outright
+    // ("You must provide a message or a command"). A neutral placeholder keeps
+    // the agent's own refusal contract in charge of empty-input demos.
+    const msg = input && input.trim() ? input : "(no input provided — respond strictly per your input contract)";
+    args.push(msg);
     const child = spawn(OPENCODE, args, {
       cwd: REPO_ROOT,
       env: process.env,
@@ -82,6 +86,8 @@ function runAgent(agentId, input, { onText, onRaw }, model) {
     let err = "";
     let tokens = null;
     let lastErrorEvent = "";
+    let lastReason = "";
+    let acc = "";                       // full text this run produced
 
     const killTimer = setTimeout(() => {
       console.log(`[agent] ${agentId} TIMEOUT after ${AGENT_TIMEOUT_MS / 1000}s — killing`);
@@ -93,31 +99,36 @@ function runAgent(agentId, input, { onText, onRaw }, model) {
     const typeCounts = Object.create(null);
     console.log(`[agent] ${agentId} spawned pid=${child.pid}`);
 
+    const handleLine = (line) => {
+      if (!line.trim()) return;
+      let ev;
+      try { ev = JSON.parse(line); } catch { onRaw(line); return; }
+      typeCounts[ev.type || "?"] = (typeCounts[ev.type || "?"] || 0) + 1;
+
+      if (ev.type === "text" && ev.part && typeof ev.part.text === "string") {
+        const id = ev.part.id || "?";
+        const full = ev.part.text;
+        const prev = partLen.get(id);
+        partLen.set(id, full.length);
+        let delta = null;
+        if (prev == null) delta = full;                    // first sight of this part
+        else if (full.length > prev) delta = full.slice(prev);  // cumulative → suffix
+        if (delta) { acc += delta; onText(delta); }        // else duplicate, drop
+      } else if (ev.type === "error" || (ev.part && ev.part.type === "error")) {
+        lastErrorEvent = JSON.stringify(ev).slice(0, 2000);
+      } else if (ev.type === "step_finish" && ev.part) {
+        if (ev.part.tokens) tokens = ev.part.tokens;
+        if (ev.part.reason) lastReason = ev.part.reason;
+      }
+    };
+
     child.stdout.on("data", (d) => {
       if (!gotBytes) { gotBytes = true; console.log(`[agent] ${agentId} first stdout byte after ${Date.now() - t0}ms`); }
       buf += d.toString();
       let nl;
       while ((nl = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, nl);
+        handleLine(buf.slice(0, nl));
         buf = buf.slice(nl + 1);
-        if (!line.trim()) continue;
-        let ev;
-        try { ev = JSON.parse(line); } catch { onRaw(line); continue; }
-        typeCounts[ev.type || "?"] = (typeCounts[ev.type || "?"] || 0) + 1;
-
-        if (ev.type === "text" && ev.part && typeof ev.part.text === "string") {
-          const id = ev.part.id || "?";
-          const full = ev.part.text;
-          const prev = partLen.get(id);
-          partLen.set(id, full.length);
-          if (prev == null) onText(full);                 // first sight of this part
-          else if (full.length > prev) onText(full.slice(prev));  // cumulative → suffix
-          // full.length <= prev → duplicate/re-emitted part, drop
-        } else if (ev.type === "error" || (ev.part && ev.part.type === "error")) {
-          lastErrorEvent = JSON.stringify(ev).slice(0, 2000);
-        } else if (ev.type === "step_finish" && ev.part && ev.part.tokens) {
-          tokens = ev.part.tokens;
-        }
       }
     });
 
@@ -126,14 +137,26 @@ function runAgent(agentId, input, { onText, onRaw }, model) {
     child.on("close", (code, signal) => {
       clearTimeout(killTimer);
       currentChild = null;
-      console.log(`[agent] ${agentId} exited code=${code} signal=${signal} after ${Date.now() - t0}ms types=${JSON.stringify(typeCounts)}`);
-      if (cancelRequested) { cancelRequested = false; resolve({ cancelled: true, tokens }); return; }
-      if (code === 0) { resolve({ tokens }); return; }
+      if (buf.trim()) handleLine(buf.trim());   // flush a trailing line without \n
+      console.log(`[agent] ${agentId} exited code=${code} signal=${signal} after ${Date.now() - t0}ms reason=${lastReason || "?"} chars=${acc.length} types=${JSON.stringify(typeCounts)}`);
+      if (cancelRequested) { cancelRequested = false; resolve({ cancelled: true, tokens, text: acc }); return; }
+      if (code === 0) { resolve({ tokens, text: acc }); return; }
       reject(new Error(lastErrorEvent || err.trim().slice(-2000) || `opencode exited with code ${code}`));
     });
 
     child.on("error", (e) => { clearTimeout(killTimer); currentChild = null; reject(e); });
   });
+}
+
+/* One run, with a single automatic retry if the model exited cleanly but
+ * produced no text (observed on slow/free-tier models: exit 0, tools only). */
+async function runAgentChecked(agentId, input, sink, model) {
+  let r = await runAgent(agentId, input, sink, model);
+  if (!r.cancelled && !(r.text || "").trim()) {
+    console.log(`[agent] ${agentId} produced NO text — retrying once`);
+    r = await runAgent(agentId, input, sink, model);
+  }
+  return r;
 }
 
 /* ---------- request handling ---------- */
@@ -170,12 +193,14 @@ async function handleRun(req, res) {
   const t0 = Date.now();
   send(res, "meta", { agent });
   try {
-    const { tokens, cancelled } = await runAgent(agent, input, {
+    const r = await runAgentChecked(agent, input, {
       onText: (text) => send(res, "chunk", { text }),
       onRaw: (line) => send(res, "raw", { line }),
     }, model);
-    if (cancelled) send(res, "cancelled", {});
-    else send(res, "done", { elapsedMs: Date.now() - t0, tokens });
+    if (r.cancelled) send(res, "cancelled", {});
+    else if (!(r.text || "").trim()) {
+      send(res, "error", { message: `${agent} produced no output — the model returned an empty response even after one retry. Try again, or pass "model" to use a different one.` });
+    } else send(res, "done", { elapsedMs: Date.now() - t0, tokens: r.tokens });
   } catch (e) {
     send(res, "error", { message: String((e && e.message) || e) });
   } finally {
@@ -214,15 +239,20 @@ async function handlePipeline(req, res) {
       const s0 = Date.now();
       send(res, "stage", { index: i, agent: a.id, title: a.title, input: stageInput });
 
-      let acc = "";
-      const { tokens, cancelled } = await runAgent(a.id, stageInput, {
-        onText: (text) => { acc += text; send(res, "chunk", { index: i, text }); },
+      const r = await runAgentChecked(a.id, stageInput, {
+        onText: (text) => send(res, "chunk", { index: i, text }),
         onRaw: (line) => send(res, "raw", { index: i, line }),
       }, model);
-      outputs[i] = acc;
-      try { fs.writeFileSync(`/tmp/qa-ui-stage-${i + 1}.txt`, acc); } catch {}
-      if (cancelled) { send(res, "cancelled", { index: i }); busy = false; stopHb(); res.end(); return; }
-      send(res, "stage_done", { index: i, elapsedMs: Date.now() - s0, tokens });
+      if (r.cancelled) { send(res, "cancelled", { index: i }); busy = false; stopHb(); res.end(); return; }
+      if (!(r.text || "").trim()) {
+        // Never chain an empty block — that is what used to surface as the
+        // downstream "You must provide a message or a command" error.
+        send(res, "error", { index: i, message: `Stage ${i + 1} (${a.title}) produced no output — the model returned an empty response even after one retry. Try again, or pass "model" to use a faster one.` });
+        return;
+      }
+      outputs[i] = r.text;
+      try { fs.writeFileSync(`/tmp/qa-ui-stage-${i + 1}.txt`, r.text); } catch {}
+      send(res, "stage_done", { index: i, elapsedMs: Date.now() - s0, tokens: r.tokens });
     }
     send(res, "done", { elapsedMs: Date.now() - t0 });
   } catch (e) {
