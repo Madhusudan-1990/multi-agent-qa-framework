@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Multi-Agent QA Framework</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #12171e; --panel2: #0e1319; --border: #232b35;
+    --text: #d7dee8; --dim: #7d8896; --accent: #3ddc84; --amber: #ffb020;
+    --red: #ff5c5c; --blue: #58a6ff; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 14px; line-height: 1.45; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header { padding: 22px 28px 14px; border-bottom: 1px solid var(--border); }
+  h1 { margin: 0; font-size: 20px; letter-spacing: 1px; font-weight: 700; }
+  h1 .dot { color: var(--accent); }
+  .sub { color: var(--dim); margin-top: 6px; font-size: 13px; }
+  .links { position: absolute; top: 24px; right: 28px; font-size: 13px; display: flex; gap: 16px; }
+  .cov-badge { display: none; background: rgba(61,220,132,.12); border: 1px solid var(--accent);
+    color: var(--accent); padding: 3px 10px; border-radius: 999px; font-weight: 700; }
+
+  .composer { padding: 18px 28px; border-bottom: 1px solid var(--border); background: var(--panel2); }
+  textarea { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-family: var(--mono); font-size: 13px; resize: vertical; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  #spec { min-height: 96px; }
+  .actions { display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  button { font-family: var(--mono); font-size: 13px; font-weight: 600; border-radius: 8px;
+    padding: 9px 16px; cursor: pointer; border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #062313; }
+  button.danger { border-color: var(--red); color: var(--red); background: transparent; }
+  button.ghost { background: transparent; }
+  button.sm { padding: 4px 10px; font-size: 12px; font-weight: 500; }
+  #status { color: var(--dim); font-size: 13px; margin-left: 6px; }
+  #status b { color: var(--accent); }
+
+  main { padding: 18px 28px 40px; display: grid; gap: 14px; max-width: 1100px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .num { color: var(--bg); background: var(--dim); width: 26px; height: 26px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+  .card.done .num { background: var(--accent); }
+  .card.running .num { background: var(--amber); animation: pulse 1.1s infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  .title { font-weight: 700; font-size: 13.5px; letter-spacing: .4px; }
+  .contract { color: var(--dim); font-size: 12px; }
+  .pill { margin-left: auto; font-size: 11.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim); }
+  .card.running .pill { border-color: var(--amber); color: var(--amber); }
+  .card.done .pill { border-color: var(--accent); color: var(--accent); }
+  .card.refused .pill { border-color: var(--amber); color: var(--amber); }
+  .card.error .pill { border-color: var(--red); color: var(--red); }
+  .meta { font-size: 11.5px; color: var(--dim); min-width: 70px; text-align: right; }
+
+  .row { display: grid; grid-template-columns: 68px 1fr; gap: 10px; padding: 10px 14px; align-items: start; }
+  .row + .row { border-top: 1px dashed var(--border); }
+  .lbl { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding-top: 8px; }
+  .row textarea, .row pre { width: 100%; margin: 0; min-height: 54px; max-height: 300px; }
+  .row pre { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--text); }
+  .row pre:empty::before { content: "—"; color: var(--dim); }
+  pre .blocklabel { color: var(--accent); font-weight: 700; }
+  pre .finding { color: var(--amber); font-weight: 700; }
+  .card-head .tools { display: flex; gap: 8px; }
+  footer { color: var(--dim); font-size: 12.5px; padding: 0 28px 30px; max-width: 1100px; }
+  .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--amber);
+    border-right-color: transparent; border-radius: 50%; animation: rot .7s linear infinite; vertical-align: -1px; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="links">
+    <span class="cov-badge" id="covBadge"></span>
+    <a href="https://github.com/Madhusudan-1990/multi-agent-qa-framework" target="_blank">github</a>
+    <a href="https://github.com/Madhusudan-1990/multi-agent-qa-framework/blob/main/VALIDATION.md" target="_blank">VALIDATION</a>
+  </div>
+  <h1><span class="dot">◆</span> MULTI-AGENT QA FRAMEWORK</h1>
+  <div class="sub">live UI over the same 5 <code>.opencode/agent/*.md</code> files — no API keys, no copy-paste</div>
+</header>
+
+<div class="composer">
+  <textarea id="spec" placeholder="Paste anything the agents can read: OpenAPI/Swagger JSON, Postman collection, GraphQL schema, gRPC .proto, endpoint list, README section, or base URL — any application domain…"></textarea>
+  <div class="actions">
+    <button class="primary" id="runPipeline">▶ Run full pipeline</button>
+    <button class="ghost" id="loadBooks">load Books demo spec</button>
+    <button class="danger" id="stopBtn" disabled>■ stop</button>
+    <span id="status">ready</span>
+  </div>
+</div>
+
+<main id="stages"></main>
+
+<footer>
+  Server → spawns <code>opencode run --agent &lt;id&gt; --format json</code> → streams text parts as SSE.
+  Chaining follows the contract: stage&nbsp;2 gets <code>[EXTRACTED RULES]</code> … stage&nbsp;4 gets rules&nbsp;+&nbsp;cases.
+  Refusals are features: run a stage without its input block and the agent will say so.
+</footer>
+
+<script>
+const BOOKS_SPEC = JSON.stringify({openapi:"3.0.0",info:{title:"Books API",version:"1.0.0"},paths:{"/books":{get:{responses:{200:{description:"OK"}}},post:{requestBody:{content:{"application/json":{schema:{$ref:"#/components/schemas/Book"}}}},responses:{200:{description:"created"},422:{description:"validation"}}}},"/books/{id}":{get:{parameters:[{name:"id",in:"path",required:true,schema:{type:"integer"}}],responses:{200:{description:"OK"},404:{description:"not found"}}},delete:{responses:{204:{description:"deleted"}}}}},components:{schemas:{Book:{type:"object",required:["title"],properties:{title:{type:"string"},price:{type:"number"},in_stock:{type:"integer"}}}},securitySchemes:{ApiKey:{type:"apiKey",name:"X-API-Key",in:"header"}}},security:[{ApiKey:[]}]});
+
+const $ = (s) => document.querySelector(s);
+const state = { agents: [], cards: [], busy: false, outputs: [] };
+
+const REFUSAL_RE = /(need (the|a) \[[A-Z ]+\]|not provided, stop and|stop and (ask|reply))/i;
+const COVERAGE_RE = /Final\s*Coverage:?\s*(\d+)\s*%/i;
+
+/* ---------- SSE over POST ---------- */
+async function sse(url, body, handlers, signal) {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body), signal });
+  if (!res.ok) throw new Error(await res.text());
+  const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, i); buf = buf.slice(i + 2);
+      let ev = "message", data = "";
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("event: ")) ev = line.slice(7);
+        else if (line.startsWith("data: ")) data += line.slice(6);
+      }
+      try { handlers[ev] && handlers[ev](JSON.parse(data)); } catch {}
+    }
+  }
+}
+
+/* ---------- rendering ---------- */
+function highlight(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  div.innerHTML = div.innerHTML
+    .replace(/(\[(?:EXTRACTED RULES|GENERATED TEST CASES|PLAYWRIGHT SCRIPTS|COVERAGE REPORT|FINAL COVERAGE SUMMARY)\])/g,
+      '<span class="blocklabel">$1</span>')
+    .replace(/^(\s*(FINDING|BUG)[^\n]*)$/gm, '<span class="finding">$1</span>');
+  return div.innerHTML;
+}
+
+function buildCards() {
+  const wrap = $("#stages");
+  state.agents.forEach((a, i) => {
+    const card = document.createElement("section");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="num">${a.n}</span>
+        <span class="title">${a.title.toUpperCase()}</span>
+        <span class="contract">needs ${a.needs} → gives ${a.gives}</span>
+        <span class="tools"><button class="sm ghost" data-run="${i}">run ▶</button></span>
+        <span class="pill">idle</span>
+        <span class="meta"></span>
+      </div>
+      <div class="row"><span class="lbl">input</span><textarea data-in="${i}" rows="3" placeholder="agent input…"></textarea></div>
+      <div class="row"><span class="lbl">output</span><pre data-out="${i}"></pre></div>`;
+    wrap.appendChild(card);
+    state.cards.push(card);
+    card.querySelector("[data-run]").addEventListener("click", () => runStage(i));
+  });
+}
+
+function setStatus(html) { $("#status").innerHTML = html; }
+function setBusy(b) {
+  state.busy = b;
+  document.querySelectorAll("[data-run]").forEach((b2) => (b2.disabled = b));
+  $("#runPipeline").disabled = b;
+  $("#stopBtn").disabled = !b;
+}
+function elapsedTicker(el, from) {
+  const t = setInterval(() => { if (!el.isConnected || !from.t) { clearInterval(t); return; }
+    el.textContent = ((Date.now() - from.t) / 1000).toFixed(1) + "s"; }, 100);
+  return () => { from.t = 0; clearInterval(t); };
+}
+function cardMeta(i, text) { state.cards[i].querySelector(".meta").textContent = text; }
+function cardState(i, cls, pill) {
+  const c = state.cards[i];
+  c.classList.remove("running", "done", "refused", "error");
+  if (cls) c.classList.add(cls);
+  c.querySelector(".pill").textContent = pill;
+}
+const tokenLine = (tokens) => tokens ? `${tokens.total} tok` : "";
+
+function finishCard(i, elapsedMs, tokens) {
+  const out = state.outputs[i] || "";
+  let cls = "done", pill = "done · " + (elapsedMs / 1000).toFixed(1) + "s";
+  if (REFUSAL_RE.test(out)) { cls = "refused"; pill = "contract refusal"; }
+  cardState(i, cls, pill);
+  cardMeta(i, tokenLine(tokens));
+}
+
+function extractCoverage(text) {
+  const m = COVERAGE_RE.exec(text || "");
+  if (m) { const b = $("#covBadge"); b.textContent = m[1] + "% coverage"; b.style.display = "inline-block"; }
+}
+
+/* ---------- single-stage run ---------- */
+async function runStage(i) {
+  if (state.busy) return;
+  setBusy(true);
+  const a = state.agents[i];
+  const input = state.cards[i].querySelector("[data-in]").value;
+  const pre = state.cards[i].querySelector("[data-out]");
+  state.outputs[i] = ""; pre.innerHTML = "";
+  cardState(i, "running", "running"); state.cards[i].querySelector(".meta").textContent = "";
+  setStatus(`running <b>${a.title}</b>…`);
+  const tick = elapsedTicker(state.cards[i].querySelector(".meta"), { t: Date.now() });
+  const s0 = Date.now();
+
+  try {
+    let tokens = null;
+    await sse("/api/run", { agent: a.id, input }, {
+      chunk: (d) => { state.outputs[i] += d.text; pre.innerHTML = highlight(state.outputs[i]);
+        pre.scrollTop = pre.scrollHeight; },
+      raw: () => {},
+      done: (d) => { tokens = d.tokens; },
+      error: (d) => { cardState(i, "error", "error"); setStatus(`<span style="color:var(--red)">error: ${d.message.slice(0, 200)}</span>`); },
+      cancelled: () => { cardState(i, null, "cancelled"); setStatus("cancelled"); },
+    });
+    if (state.cards[i].classList.contains("running")) finishCard(i, Date.now() - s0, tokens);
+    if (!state.cards[i].classList.contains("error")) setStatus(`stage ${i + 1} complete — output is auto-used as next stage input`);
+  } catch (e) {
+    cardState(i, "error", "error");
+    setStatus(`<span style="color:var(--red)">failed: ${String(e.message || e).slice(0, 200)}</span>`);
+  } finally { tick(); setBusy(false); }
+}
+
+/* ---------- full pipeline ---------- */
+async function runPipeline() {
+  if (state.busy) return;
+  const input = $("#spec").value;
+  if (!input.trim()) { setStatus(`<span style="color:var(--amber)">paste a spec first (or load the demo)</span>`); $("#spec").focus(); return; }
+  setBusy(true);
+  $("#covBadge").style.display = "none";
+  state.outputs = [];
+  state.cards.forEach((_, i) => {
+    state.outputs[i] = "";
+    state.cards[i].querySelector("[data-out]").innerHTML = "";
+    state.cards[i].querySelector(".meta").textContent = "";
+    cardState(i, null, "queued");
+  });
+  setStatus("pipeline running…");
+  const t0 = Date.now();
+
+  const finishOk = (d) => setStatus(`<b>pipeline complete</b> in ${((d.elapsedMs || Date.now() - t0) / 1000).toFixed(0)}s — every stage chained`);
+  try {
+    await sse("/api/pipeline", { input }, {
+      stage: (d) => {
+        setStatus(`running <b>${d.index + 1}/5 · ${d.title}</b>…`);
+        cardState(d.index, "running", "running");
+        // server sends the exact chained input it will feed this stage (contract: rules+cases for #4)
+        if (d.index > 0) state.cards[d.index].querySelector("[data-in]").value = d.input || "";
+        const tick = elapsedTicker(state.cards[d.index].querySelector(".meta"), { t: Date.now() });
+        state.cards[d.index]._tick = tick;
+      },
+      chunk: (d) => {
+        const i = d.index;
+        state.outputs[i] = (state.outputs[i] || "") + d.text;
+        const pre = state.cards[i].querySelector("[data-out]");
+        pre.innerHTML = highlight(state.outputs[i]);
+        pre.scrollTop = pre.scrollHeight;
+      },
+      raw: () => {},
+      stage_done: (d) => {
+        state.cards[d.index]._tick && state.cards[d.index]._tick();
+        finishCard(d.index, d.elapsedMs, d.tokens);
+      },
+      done: finishOk,
+      error: (d) => { setStatus(`<span style="color:var(--red)">pipeline error: ${d.message.slice(0, 240)}</span>`);
+        const i = (d.index != null) ? d.index : state.cards.findIndex((c) => c.classList.contains("running"));
+        if (i >= 0) cardState(i, "error", "error"); },
+      cancelled: (d) => setStatus("pipeline cancelled"),
+    });
+    extractCoverage(state.outputs[4]);
+  } catch (e) {
+    setStatus(`<span style="color:var(--red)">failed: ${String(e.message || e).slice(0, 200)}</span>`);
+  } finally { setBusy(false); }
+}
+
+/* ---------- wiring ---------- */
+$("#runPipeline").addEventListener("click", runPipeline);
+$("#loadBooks").addEventListener("click", () => { $("#spec").value = BOOKS_SPEC; setStatus("Books demo spec loaded — hit ▶"); });
+$("#stopBtn").addEventListener("click", () => fetch("/api/cancel", { method: "POST" }).catch(() => {}));
+
+(async function init() {
+  try {
+    state.agents = await (await fetch("/api/agents")).json();
+    buildCards();
+    setStatus("ready — paste a spec, or load the Books demo");
+  } catch (e) { setStatus(`<span style="color:var(--red)">cannot reach server</span>`); }
+})();
+</script>
+</body>
+</html>

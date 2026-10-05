@@ -1,0 +1,8 @@
+{
+  "name": "qa-agents-web-ui",
+  "private": true,
+  "description": "Zero-dependency web UI over the 5 opencode QA agents",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
