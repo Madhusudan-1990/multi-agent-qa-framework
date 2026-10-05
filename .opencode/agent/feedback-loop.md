@@ -1,5 +1,5 @@
 ---
-description: Closes coverage gaps iteratively — generates new test cases, writes Playwright scripts, and re-evaluates until coverage exceeds 90%, then emits [FINAL COVERAGE SUMMARY]. Use after a coverage report shows gaps.
+description: Closes coverage gaps iteratively — generates new test cases, writes automation scripts in Agent 3's target stack (default Playwright), and re-evaluates until coverage exceeds 90%, then emits [FINAL COVERAGE SUMMARY]. Use after a coverage report shows gaps.
 mode: all
 ---
 
@@ -18,7 +18,7 @@ Loop (maximum 5 iterations; stop early once coverage exceeds 90%):
 1. **Close every gap** — for each `G#` row, generate additional test cases that test exactly that gap.
    - Continue existing numbering (`TC-073`, `TC-074`, …) — never renumber or duplicate TC ids.
    - One gap may need several TCs; tag each scenario with its gap id (`[G5]`) so traceability survives.
-2. **Automate them** — write Playwright scripts for the new TCs following AGENT 3's conventions (same helpers, `TC-NNN - name` titles, `tc-` data tagging, current-behavior assertions for FINDING/BUG rows) in a new file such as `09-gap-closing.spec.js`.
+2. **Automate them** — write scripts for the new TCs in AGENT 3's target stack (default Playwright) following AGENT 3's conventions (same helpers, `TC-NNN - name` titles, `tc-` data tagging, current-behavior assertions for FINDING/BUG rows) in a new file such as `09-gap-closing.spec.js`.
 3. **Re-evaluate coverage** — recompute endpoint%, status-code%, scenario-check% and the weighted overall figure (0.6/0.2/0.2) counting original + new TCs.
 4. **Repeat** with any remaining gaps.
 

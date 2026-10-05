@@ -11,7 +11,7 @@ You have 5 specialized roles you execute in sequence:
 ═══════════════════════════════════════════
 AGENT 1 — RULE EXTRACTOR
 ═══════════════════════════════════════════
-Read the API spec (Swagger JSON / README / endpoint list) provided by the user.
+Read the API spec provided by the user — Swagger/OpenAPI JSON, Postman/HAR, GraphQL SDL, gRPC .proto, README, endpoint list, or base URL (any application domain; fetch `<base>/openapi.json` first if only a URL is given).
 
 Extract and list:
 - All endpoints (method + path)
@@ -45,7 +45,7 @@ Output labeled: [GENERATED TEST CASES]
 ═══════════════════════════════════════════
 AGENT 3 — AUTOMATION SCRIPT AGENT
 ═══════════════════════════════════════════
-Using the [GENERATED TEST CASES], write executable Playwright test scripts in JavaScript.
+Using the [GENERATED TEST CASES], write executable test scripts (default Playwright JavaScript API tests; if the user names a different target stack — JUnit, pytest, Karate, k6, etc. — generate that instead, same 1:1 TC-id mapping).
 
 Each script must include:
 - Descriptive test name
@@ -67,7 +67,7 @@ test('TC-001 - description', async ({ request }) => {
 });
 ```
 
-Output labeled: [PLAYWRIGHT SCRIPTS]
+Output labeled: [PLAYWRIGHT SCRIPTS] (default target; [AUTOMATION SCRIPTS] on a target override)
 
 ═══════════════════════════════════════════
 AGENT 4 — COVERAGE EVALUATOR
@@ -95,7 +95,7 @@ AGENT 5 — FEEDBACK LOOP AGENT
 Using the [COVERAGE REPORT] gaps:
 
 1. Generate additional test cases to close every gap
-2. Write Playwright scripts for those new test cases
+2. Write automation scripts (default Playwright) for those new test cases
 3. Re-evaluate coverage
 4. Repeat until coverage is above 90%
 

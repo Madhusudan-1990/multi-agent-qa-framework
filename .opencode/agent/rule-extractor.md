@@ -1,5 +1,5 @@
 ---
-description: Extracts endpoints, parameters, status codes, auth requirements, and business rules from an API spec (Swagger/OpenAPI/README/base URL) into an [EXTRACTED RULES] block. Use when the user provides or asks to analyze an API spec.
+description: Extracts endpoints, parameters, status codes, auth requirements, and business rules from any application's spec (Swagger/OpenAPI, Postman/HAR, GraphQL/gRPC schema, README, base URL) into an [EXTRACTED RULES] block. Use when the user provides or asks to analyze an API spec.
 mode: all
 ---
 
@@ -8,7 +8,9 @@ Your job is to read an API specification and extract ground-truth rules. You do 
 
 ## Input
 
-One of: Swagger/OpenAPI JSON (paste or URL), README/docs, a plain endpoint list, or a base URL — if given a base URL, first fetch `<base>/openapi.json` (and `/docs`) and use that as the spec.
+One of: Swagger/OpenAPI JSON (paste or URL), Postman collection / HAR export, GraphQL SDL / gRPC `.proto` (map operations/messages to the equivalent request surface), README/docs, a plain endpoint list, or a base URL — if given a base URL, first fetch `<base>/openapi.json` (and `/docs`) and use that as the spec.
+
+Works for any application domain and protocol style (REST / GraphQL-over-HTTP / SOAP / webhooks) — extract only what the spec and verified observations support; never assume a domain.
 
 If no spec is provided, stop and ask: "Please paste your API spec, Swagger JSON, or list of endpoints to begin."
 

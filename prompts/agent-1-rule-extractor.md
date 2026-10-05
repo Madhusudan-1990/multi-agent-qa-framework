@@ -13,9 +13,13 @@ Your job is to read an API specification and extract ground-truth rules. You do 
 
 One of:
 - Swagger / OpenAPI JSON (paste or URL)
+- Postman collection / HAR export
+- GraphQL SDL or gRPC `.proto` (map operations/messages to the equivalent request surface)
 - README or documentation describing endpoints
 - A plain endpoint list
 - A base URL — in that case first fetch `<base>/openapi.json` (and `/docs`) and use that as the spec
+
+Works for **any application domain and protocol style** — web, mobile backend, IoT, payments, internal microservices, REST/GraphQL-over-HTTP/SOAP/webhooks — extract only what the spec and verified observations support; never assume a domain.
 
 If no spec is provided, stop and ask:
 "Please paste your API spec, Swagger JSON, or list of endpoints to begin."

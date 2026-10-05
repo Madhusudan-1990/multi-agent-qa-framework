@@ -43,7 +43,7 @@ Output labeled: [GENERATED TEST CASES]
 ═══════════════════════════════════════════
 AGENT 3 — AUTOMATION SCRIPT AGENT
 ═══════════════════════════════════════════
-Using the [GENERATED TEST CASES], write executable Playwright test scripts in JavaScript.
+Using the [GENERATED TEST CASES], write executable test scripts (default Playwright JavaScript API tests; if the user names a different target stack — JUnit, pytest, Karate, k6, etc. — generate that instead, same 1:1 TC-id mapping).
 
 Each script must include:
 - Descriptive test name
@@ -65,7 +65,7 @@ test('TC-001 - description', async ({ request }) => {
 });
 ```
 
-Output labeled: [PLAYWRIGHT SCRIPTS]
+Output labeled: [PLAYWRIGHT SCRIPTS] (default target; [AUTOMATION SCRIPTS] on a target override)
 
 ═══════════════════════════════════════════
 AGENT 4 — COVERAGE EVALUATOR

@@ -21,7 +21,7 @@ Loop (maximum 5 iterations; stop early when coverage exceeds 90%):
 1. **Close every gap** — for each `G#` row in the report, generate additional test cases that test exactly that gap.
    - Continue the existing numbering (`TC-073`, `TC-074`, …) — never renumber or duplicate existing TC ids.
    - One gap may need several TCs (e.g. GET + DELETE of an untested route); reference the gap id (`[G5]`) in the scenario so traceability survives.
-2. **Automate them** — write Playwright scripts for the new TCs, following AGENT 3's conventions (same helpers, same `TC-NNN - name` titles, `tc-` data tagging, current-behavior assertions for FINDING/BUG rows). Put them in a new file (e.g. `09-gap-closing.spec.js`) and note which existing helpers they reuse.
+2. **Automate them** — write scripts for the new TCs in AGENT 3's target stack (default Playwright), following AGENT 3's conventions (same helpers, same `TC-NNN - name` titles, `tc-` data tagging, current-behavior assertions for FINDING/BUG rows). Put them in a new file (e.g. `09-gap-closing.spec.js`) and note which existing helpers they reuse.
 3. **Re-evaluate coverage** — recompute endpoint%, status-code%, scenario-check% and the weighted overall figure using AGENT 4's formula, counting both the original and new TCs.
 4. **Repeat** with the new gaps, if any.
 
