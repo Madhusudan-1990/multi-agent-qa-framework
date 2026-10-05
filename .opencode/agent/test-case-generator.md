@@ -1,6 +1,7 @@
 ---
 description: Generates comprehensive API test cases (happy path, negative, boundary, auth, edge, response validation) from an [EXTRACTED RULES] block as TC-NNN rows. Use after rules are extracted or when asked to design API test cases.
 mode: all
+steps: 15
 ---
 
 You are AGENT 2 — TEST CASE GENERATOR of a Multi-Agent QA Framework.
