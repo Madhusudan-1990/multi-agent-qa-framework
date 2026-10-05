@@ -10,6 +10,8 @@ API spec ──▶ [1] Rule Extractor ──▶ [2] Test Case Generator ──�
 
 Each agent has a hard **input/output contract** (labeled blocks), so you can run the whole pipeline at once — or any single agent on its own.
 
+**Universal by design:** any application domain (web, mobile backend, IoT, payments, internal services), any HTTP style (REST / GraphQL-over-HTTP / SOAP / webhooks), spec as Swagger/OpenAPI, Postman/HAR, GraphQL SDL, gRPC `.proto`, README, endpoint list or base URL. The automation target defaults to Playwright/JS and swaps to JUnit, pytest, Karate, Cypress, k6, … just by naming it.
+
 ## The 5 agents
 
 | # | Agent | Input | Output | Prompt file | opencode agent |
@@ -75,6 +77,40 @@ cp .opencode/command/qa-pipeline.md ~/.config/opencode/command/
 
 Restart opencode after adding or editing agent/command files — config is loaded at startup, not hot-reloaded.
 
+### Option D — Web UI (one HTML page, same agents)
+
+```bash
+node examples/web-ui/server.js      # zero npm dependencies; prints the URL
+open http://127.0.0.1:3000
+```
+
+**Requirements:** `opencode` installed and authenticated (the server shells out to it);
+run from anywhere — paths resolve relative to the repo.
+
+How to use:
+1. **Paste a spec** into the top box — OpenAPI/Swagger, Postman/HAR, GraphQL schema,
+   gRPC `.proto`, endpoint list, README, or base URL — or click **load Books demo spec**.
+2. **▶ Run full pipeline** — the five stage cards stream their labeled blocks in sequence;
+   each output auto-fills the next stage's input (stage 4 receives rules + cases together,
+   per its contract). Per-card: live elapsed timer, token count, copyable output.
+3. **Run a single stage** with its **run ▶** button — clear an input first to see a live
+   **contract refusal** (amber pill). **■ stop** kills the current run; refresh is safe.
+4. **Faster model:** `POST /api/run` or `/api/pipeline` accept `{"model":"provider/model"}`
+   — e.g. `curl -sN -X POST localhost:3000/api/pipeline -H 'Content-Type: application/json' -d '{"input":"<spec>","model":"<model>"}'`.
+   A green **NN% coverage** badge appears after stage 5.
+
+The server is a thin proxy: it spawns the *same* `.opencode/agent/*.md` files via
+`opencode run --agent <id> --format json` and forwards the text parts as SSE —
+no separate API key, no second copy of the prompts.
+
+![web UI](examples/web-ui/demo-screenshot.png)
+
+E2E checks (with the server running):
+- `node examples/web-ui/e2e.mjs` — drives the **full pipeline** in headless Chromium,
+  asserts 5/5 stages complete + coverage badge, saves the screenshot above (~15–30 min
+  depending on model speed).
+- `SCREENSHOT_ONLY=1 node examples/web-ui/e2e.mjs` — screenshot without running agents.
+
 ---
 
 ## Worked example
@@ -107,7 +143,11 @@ multi-agent-qa-framework/
 │   └── command/qa-pipeline.md    # /qa-pipeline = full run with $ARGUMENTS
 └── examples/
     ├── prompt2production-ecommerce.md   # golden worked example (5 labeled outputs)
-    └── playwright-suite/                # the real 90-test suite from that run
+    ├── playwright-suite/                # the real 90-test suite from that run
+    └── web-ui/                          # HTML frontend over the same agents (SSE, no deps)
+        ├── server.js                    # spawns `opencode run --agent …`, streams as SSE
+        ├── index.html                   # single-page UI: pipeline + per-stage runs
+        └── e2e.mjs                      # headless-browser full-pipeline check
 ```
 
 > `prompts/` and `.opencode/agent/` contain the same instructions in two packaging formats.
