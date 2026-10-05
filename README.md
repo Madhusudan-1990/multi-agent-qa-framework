@@ -84,18 +84,30 @@ Restart opencode after adding or editing agent/command files — config is loade
 (`https://ecommerce-api.fastapicloud.dev`), showing expected output shape for every labeled block,
 including the coverage-gaps iteration.
 
+**`examples/playwright-suite/`** — the actual 90-test suite that run produced, executable:
+`cd examples/playwright-suite && npm i && npx playwright test` → **90 passed**.
+
+## Validation
+
+Every agent file was smoke-tested standalone in a fresh context, its refusal contract verified,
+the generated suite executed live, and opencode's discovery of the agents confirmed —
+see **[VALIDATION.md](VALIDATION.md)** for the evidence (5/5 smoke, 5/5 refusals, 90/90 tests green).
+
 ## Repository layout
 
 ```
 multi-agent-qa-framework/
 ├── README.md                     # this file
+├── VALIDATION.md                 # evidence: 5/5 smoke, 5/5 refusals, 90/90 green, opencode load
 ├── prompts/                      # portable, LLM-agnostic prompts (source of truth)
 │   ├── MASTER_PROMPT.md          # all 5 agents in one paste-able prompt
 │   └── agent-{1..5}-*.md         # one file per agent
 ├── .opencode/
 │   ├── agent/*.md                # same prompts wrapped as opencode agents (@-invocable)
 │   └── command/qa-pipeline.md    # /qa-pipeline = full run with $ARGUMENTS
-└── examples/                     # golden worked example
+└── examples/
+    ├── prompt2production-ecommerce.md   # golden worked example (5 labeled outputs)
+    └── playwright-suite/                # the real 90-test suite from that run
 ```
 
 > `prompts/` and `.opencode/agent/` contain the same instructions in two packaging formats.
