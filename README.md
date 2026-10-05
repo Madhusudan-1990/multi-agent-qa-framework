@@ -22,6 +22,23 @@ Each agent has a hard **input/output contract** (labeled blocks), so you can run
 | 4 | Coverage Evaluator | `[EXTRACTED RULES]` + `[GENERATED TEST CASES]` | `[COVERAGE REPORT]` | `prompts/agent-4-coverage-evaluator.md` | `.opencode/agent/coverage-evaluator.md` |
 | 5 | Feedback Loop | `[COVERAGE REPORT]` | `[FINAL COVERAGE SUMMARY]` | `prompts/agent-5-feedback-loop.md` | `.opencode/agent/feedback-loop.md` |
 
+### What each agent actually does
+
+**1 · Rule Extractor — turns a spec into testable ground truth.**
+Reads any spec shape (OpenAPI/Swagger JSON, Postman collection, HAR, GraphQL SDL, gRPC `.proto`, README, endpoint list, or a bare base URL — it will fetch `<base>/openapi.json` itself if given a URL) and emits the rules a tester would argue from: full endpoint inventory with params/body/auth, the exact response-code contract (body shape per status, not just the code), documented vs. *observed* behavior kept separate, business rules and validation limits (ranges, formats, enums), and every spec ambiguity tagged `FINDING`/`BUG` — e.g. "create returns 200, not the REST-typical 201". Read-only probing of a live base URL is allowed; without any spec it refuses and asks for one.
+
+**2 · Test Case Generator — rules → a reviewable test matrix.**
+Expands every rule into `TC-NNN | method+path | scenario | input | expected` rows covering all six required categories (happy path, negative, boundary, auth/permissions, edge, response validation), keeps a 1:1 mapping from each FINDING/rule to at least one TC, and honestly marks expectations the spec never documented as *unverified/probe* instead of inventing certainty. It never invents behavior that isn't in the rules block.
+
+**3 · Automation Script Agent — test matrix → executable tests.**
+Compiles each TC row into one runnable test with a 1:1 id mapping (`'TC-001 - …'`), asserting both the status code and the response-body contract (field presence, types, pinned values), plus shared helpers for the API's error shapes, a `playwright.config.js` with `baseURL`/`retries`, and a `NOTES` section that flags questionable test rows rather than silently changing expectations. Target stack is a parameter: Playwright/JS by default, JUnit, pytest, Karate, Cypress, k6… just by naming it. Operates under a zero-tool policy — everything is composed from the input block alone.
+
+**4 · Coverage Evaluator — the auditor.**
+Audits Agent 2's cases *against* Agent 1's rules (it needs both blocks): endpoint coverage, status-code coverage per endpoint, scenario coverage, a **weighted** coverage percentage, a concrete gap list (`G1…Gn`, each naming method/path/input/expected status), and an overall risk level. It measures, it doesn't generate — that's why it refuses to run without both inputs.
+
+**5 · Feedback Loop — the "improves" half of the pitch.**
+Takes the coverage report, closes every gap with new TCs *and* their automation scripts in the same target stack, re-measures coverage after each iteration, and stops above the threshold (default >90%), emitting `[FINAL COVERAGE SUMMARY]` with totals, final %, scripts-ready status, and honest remaining risks. One demo run: 97% → G1–G13 → 19 new cases (TC-073…TC-091) → **100%**.
+
 ---
 
 ## How to use
