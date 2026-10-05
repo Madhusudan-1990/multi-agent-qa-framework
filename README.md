@@ -90,18 +90,46 @@ run from anywhere — paths resolve relative to the repo.
 How to use:
 1. **Paste a spec** into the top box — OpenAPI/Swagger, Postman/HAR, GraphQL schema,
    gRPC `.proto`, endpoint list, README, or base URL — or click **load Books demo spec**.
-2. **▶ Run full pipeline** — the five stage cards stream their labeled blocks in sequence;
-   each output auto-fills the next stage's input (stage 4 receives rules + cases together,
-   per its contract). Per-card: live elapsed timer, token count, copyable output.
-3. **Run a single stage** with its **run ▶** button — clear an input first to see a live
-   **contract refusal** (amber pill). **■ stop** kills the current run; refresh is safe.
-4. **Faster model:** `POST /api/run` or `/api/pipeline` accept `{"model":"provider/model"}`
-   — e.g. `curl -sN -X POST localhost:3000/api/pipeline -H 'Content-Type: application/json' -d '{"input":"<spec>","model":"<model>"}'`.
-   A green **NN% coverage** badge appears after stage 5.
+2. **Pick a model** (optional) — the `model` input is pre-filled from `GET /api/models`
+   and remembered in localStorage; leave it empty to use opencode's default. The opencode
+   **free tier** can intermittently refuse headless CLI runs (HTTP 403
+   *"free tier can only be used from within OpenCode"*) — if that happens the UI shows a
+   hint; pick another free model (e.g. `opencode/mimo-v2.6-flash-free`) or run the pipeline
+   inside the opencode app instead.
+3. **▶ Run full pipeline** — the five stage cards stream their labeled blocks;
+   stages **3 and 4 run in parallel** (both only need stages 1+2), which typically saves
+   the longest stage. Each output auto-fills the next stage's input (stage 4 receives
+   rules + cases together, per its contract). Per-card: live elapsed timer, token count.
+4. **Run a single stage** with its **run ▶** button — clear an input first to see a live
+   **contract refusal** (amber pill). **■ stop** kills all running children; refresh is safe.
+5. **Export results** — per-stage **⬇ csv** (pipe tables become spreadsheet rows, UTF-8 BOM
+   so Excel opens it directly) or **⬇ CSV (all stages)** / **⬇ MD (all stages)** in the top
+   bar. Outputs that contain `A | B | C` tables also get a **table** view toggle.
+6. **Root-cause with logs** — **☰ server log** opens the diagnostics drawer: the server's
+   spawn/exit log (pid, first-byte ms, exit code, stop reason, char counts — everything
+   needed to tell a tool-loop from a model timeout from a 403) plus each stage's saved
+   artifact. The server self-logs to `/tmp/qa-ui.log` (`QA_UI_LOG` overrides), so no shell
+   redirection is needed. Per-agent hard timeout: `QA_UI_AGENT_TIMEOUT_MS` (default 600000).
 
 The server is a thin proxy: it spawns the *same* `.opencode/agent/*.md` files via
 `opencode run --agent <id> --format json` and forwards the text parts as SSE —
-no separate API key, no second copy of the prompts.
+no separate API key, no second copy of the prompts. Empty model output is never chained
+onward (placeholder input + one retry instead), so the next stage always gets a real block.
+
+**Refresh-safe:** a closed tab or refresh does *not* cancel a running pipeline — the
+server keeps going, persists every completed stage to `/tmp/qa-ui-run.json` (plus the
+per-stage artifacts), and the UI restores results on next page load (`GET /api/last-run`,
+`GET /api/status`); while a background run is active the page polls and updates its cards.
+**■ stop** (`POST /api/cancel`) is the only thing that kills running agents.
+
+**Known limitation:** agent frontmatter `permission:` blocks (e.g. `bash: deny`) currently
+break *headless* `opencode run` runs on the free tier (HTTP 403 before any tool call).
+Tool discipline is therefore enforced in the prompt bodies + `steps:` iteration caps;
+re-enable frontmatter permissions only when running with your own provider key.
+
+**HTTP API** (for scripting/demos): `POST /api/run {agent,input,model}` and
+`POST /api/pipeline {input,model}` stream SSE (`meta|stage|chunk|stage_done|done|error|cancelled`),
+`POST /api/cancel`, `GET /api/agents`, `GET /api/models`, `GET /api/logs[?stage=N]`, `GET /health`.
 
 ![web UI](examples/web-ui/demo-screenshot.png)
 

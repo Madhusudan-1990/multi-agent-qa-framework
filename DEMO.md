@@ -30,8 +30,9 @@ cd ~/multi-agent-qa-framework
 opencode run --agent rule-extractor "Reply per your instructions"
 # MUST reply: "Please paste your API spec, Swagger JSON, or list of endpoints to begin."
 #   (this one command proves agent discovery + prompt wiring + model auth + refusal contract)
-node examples/web-ui/server.js &         # web UI backend (UI demo)
-sleep 1 && curl -s localhost:3000/health # MUST say {"ok":true,"agents":5}
+node examples/web-ui/server.js &         # web UI backend (UI demo) — self-logs to /tmp/qa-ui.log
+sleep 1 && curl -s localhost:3000/health # MUST include "ok":true,"agents":5
+curl -s localhost:3000/api/models | head -c 160   # model ids for the UI picker (also: /api/logs)
 ```
 
 ### T-5 min hygiene
@@ -82,14 +83,19 @@ same agents, one page. Timeline:
 
 | Time | Action | Words while it happens |
 |---|---|---|
-| 1:50 | Browser → `http://127.0.0.1:3000` → **load Books demo spec** → **▶ Run full pipeline** | "This page is a thin proxy — it spawns the exact same five agent files you saw in the repo, no API keys. Watch the blocks chain." |
-| 2:10–5:00 | Pipeline streams (stages fill in sequence, ~2–4 min total) — **switch to terminal mid-stream** and run `npx playwright test --grep "FINDING\|BUG"` (11s), tell the TC-039/TC-040 stories (Act 6 text), then come back | dead air is narrated by the characterization act |
+| 1:50 | Browser → `http://127.0.0.1:3000` → **load Books demo spec** → **▶ Run full pipeline** | "This page is a thin proxy — it spawns the exact same five agent files you saw in the repo, no API keys. Stages 3+4 run in parallel; watch the blocks chain." |
+| 2:10–5:00 | Pipeline streams (stages fill in, ~2–4 min total) — **switch to terminal mid-stream** and run `npx playwright test --grep "FINDING\|BUG"` (11s), tell the TC-039/TC-040 stories (Act 6 text), then come back | dead air is narrated by the characterization act |
 | ~5:00 | UI shows **5/5 done** + green **NN% coverage** badge → point at stage 4's input textarea showing rules+cases auto-chained | "Coverage evaluator got *both* blocks — the contract, enforced by the wiring." |
-| 5:10 | Stage 2 card → clear its input → **run ▶** → amber **contract refusal** pill | "No input, no output — same refusal, now visible as a status, not a surprise." |
-| 5:30 | Skip Act 7 (the UI badge replaced it) → Act 8 close on VALIDATION.md | |
+| 5:10 | Per-stage **⬇ csv** (or top bar **⬇ CSV / MD (all stages)**) → open in Excel → toggle a card's **table** view | "The test-case table leaves as a spreadsheet with one click — no copy-paste from a chat window." |
+| 5:25 | **☰ server log** drawer → point at spawn/exit lines (pid, ms, stop reason, char counts) | "Any stage that misbehaves is root-causeable from this — tool-loop, timeout, or provider error, all visible." |
+| 5:40 | Stage 2 card → clear its input → **run ▶** → amber **contract refusal** pill | "No input, no output — same refusal, now visible as a status, not a surprise." |
+| 6:00 | Skip Act 7 (the UI badge replaced it) → Act 8 close on VALIDATION.md | |
 
 Track B risks: pipeline takes minutes (narrate, never watch silently); if a stage
 errors mid-stream, abort to **Track A** at Act 4 — everything downstream still works.
+If the model picker shows a free-tier 403 hint, pick `opencode/mimo-v2.6-flash-free`
+(or another free id from the datalist) and re-run; if all models 403, drop to Track A
+(the CLI has the same constraint).
 Track A (terminal, below) remains the low-risk default if the server pre-flight failed.
 
 ### Act 4 — Live agent on a fresh spec · 2:00–3:30
