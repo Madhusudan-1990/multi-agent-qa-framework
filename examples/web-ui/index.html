@@ -71,9 +71,10 @@
     border-right-color: transparent; border-radius: 50%; animation: rot .7s linear infinite; vertical-align: -1px; }
   @keyframes rot { to { transform: rotate(360deg); } }
 
-  input[type=text] { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+  input[type=text], select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 12.5px; width: 300px; }
-  input[type=text]:focus { outline: none; border-color: var(--accent); }
+  input[type=text]:focus, select:focus { outline: none; border-color: var(--accent); }
+  select { cursor: pointer; }
   .model-wrap { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; }
 
   /* pipe-table view */
@@ -104,7 +105,7 @@
     <a href="https://github.com/Madhusudan-1990/multi-agent-qa-framework/blob/main/VALIDATION.md" target="_blank">VALIDATION</a>
   </div>
   <h1><span class="dot">◆</span> MULTI-AGENT QA FRAMEWORK</h1>
-  <div class="sub">live UI over the same 5 <code>.opencode/agent/*.md</code> files — no API keys, no copy-paste</div>
+  <div class="sub">paste an API spec — five agents chain rules → test cases → runnable scripts → coverage report, no copy-paste between steps</div>
 </header>
 
 <div class="composer">
@@ -114,8 +115,9 @@
     <button class="ghost" id="loadBooks">load Books demo spec</button>
     <button class="danger" id="stopBtn" disabled>■ stop</button>
     <label class="model-wrap">model
-      <input type="text" id="model" list="modelList" placeholder="opencode default" spellcheck="false" />
-      <datalist id="modelList"></datalist>
+      <select id="model">
+        <option value="">opencode default</option>
+      </select>
     </label>
     <span id="status">ready</span>
   </div>
@@ -429,8 +431,7 @@ $("#runPipeline").addEventListener("click", runPipeline);
 $("#loadBooks").addEventListener("click", () => { $("#spec").value = BOOKS_SPEC; setStatus("Books demo spec loaded — hit ▶"); });
 $("#stopBtn").addEventListener("click", () => fetch("/api/cancel", { method: "POST" }).catch(() => {}));
 
-const modelValue = () => $("#model").value.trim() || undefined;
-$("#model").addEventListener("change", () => localStorage.setItem("qa-model", $("#model").value.trim()));
+const modelValue = () => $("#model").value || undefined;
 
 $("#exportAllCsv").addEventListener("click", () => {
   if (!state.outputs.some((t) => (t || "").trim())) { setStatus("nothing to export yet — run the pipeline first"); return; }
@@ -472,10 +473,6 @@ function restoreRun(run) {
     const card = state.cards[i];
     if (!card) return;
     any = true;
-    if (s.input != null && s.input !== "") {
-      if (i === 0 && !$("#spec").value) $("#spec").value = s.input;
-      card.querySelector("[data-in]").value = s.input;
-    }
     if (s.output) {
       state.outputs[i] = s.output;
       renderOut(i);
@@ -523,9 +520,13 @@ function startRemoteSync() {
     setStatus("ready — paste a spec, or load the Books demo");
   } catch (e) { setStatus(`<span style="color:var(--red)">cannot reach server</span>`); }
   try {
-    $("#model").value = localStorage.getItem("qa-model") || "";
     const m = await (await fetch("/api/models")).json();
-    $("#modelList").innerHTML = (m.models || []).map((id) => `<option value="${escHtml(id)}"></option>`).join("");
+    const sel = $("#model");
+    for (const id of m.models || []) {
+      const o = document.createElement("option");
+      o.value = id; o.textContent = id;
+      sel.appendChild(o);
+    }
   } catch {}
   try {
     const [st, lr] = await Promise.all([
