@@ -529,18 +529,13 @@ function startRemoteSync() {
     }
   } catch {}
   try {
-    const [st, lr] = await Promise.all([
-      fetch("/api/status").then((r) => r.json()),
-      fetch("/api/last-run").then((r) => r.json()),
-    ]);
-    const restored = lr && lr.run ? restoreRun(lr.run) : false;
+    const st = await (await fetch("/api/status")).json();
     if (st.busy) {
       setBusy(true);
       startRemoteSync();
       setStatus("a run is continuing in the background — cards update as stages finish (■ stop aborts)");
-    } else if (restored) {
-      setStatus("restored the last run from the server — run again anytime");
     }
+    // idle → clean page: inputs AND outputs always start empty on refresh
   } catch {}
 })();
 </script>
