@@ -399,8 +399,10 @@ async function runPipeline() {
       stage: (d) => {
         setStatus(`running <b>${d.index + 1}/5 · ${d.title}</b>…`);
         cardState(d.index, "running", "running");
-        // server sends the exact chained input it will feed this stage (contract: rules+cases for #4)
-        if (d.index > 0) state.cards[d.index].querySelector("[data-in]").value = d.input || "";
+        // fill every card with the exact chained input the server will feed it
+        // (stage 1 = the spec itself) — inputs are only ever cleared by a refresh
+        state.cards[d.index].querySelector("[data-in]").value = d.input || "";
+        if (d.index === 0 && d.input && !$("#spec").value) $("#spec").value = d.input;
         const tick = elapsedTicker(state.cards[d.index].querySelector(".meta"), { t: Date.now() });
         state.cards[d.index]._tick = tick;
       },
@@ -473,6 +475,10 @@ function restoreRun(run) {
     const card = state.cards[i];
     if (!card) return;
     any = true;
+    if (s.input != null && s.input !== "") {
+      if (i === 0 && !$("#spec").value) $("#spec").value = s.input;
+      card.querySelector("[data-in]").value = s.input;
+    }
     if (s.output) {
       state.outputs[i] = s.output;
       renderOut(i);
