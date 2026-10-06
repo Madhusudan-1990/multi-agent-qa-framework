@@ -34,6 +34,19 @@ if (process.env.SCREENSHOT_ONLY) {
 
 await page.click("#loadBooks");
 console.log("spec chars:", (await page.inputValue("#spec")).length);
+
+// Optional model pin: E2E_MODEL=openai/gpt-5.5-fast node e2e.mjs
+// (the dropdown is filled asynchronously from /api/models)
+if (process.env.E2E_MODEL) {
+  await page.waitForFunction(
+    (v) => [...document.querySelectorAll("#model option")].some((o) => o.value === v),
+    process.env.E2E_MODEL,
+    { timeout: 20000 }
+  );
+  await page.selectOption("#model", process.env.E2E_MODEL);
+  console.log("model:", await page.inputValue("#model"));
+}
+
 await page.click("#runPipeline");
 console.log("pipeline started…");
 
